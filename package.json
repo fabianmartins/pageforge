@@ -1,0 +1,64 @@
+{
+  "name": "pageforge",
+  "version": "0.1.0",
+  "description": "A JSON-driven page framework for building admin consoles with React, Cloudscape Design System, and AWS API Gateway.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "react",
+    "cloudscape",
+    "admin-console",
+    "json-config",
+    "aws",
+    "sigv4",
+    "i18n",
+    "remix"
+  ],
+  "author": "",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-org/pageforge.git"
+  },
+  "homepage": "https://github.com/your-org/pageforge#readme",
+  "bugs": {
+    "url": "https://github.com/your-org/pageforge/issues"
+  },
+  "peerDependencies": {
+    "@cloudscape-design/components": "^3.0.0",
+    "@cloudscape-design/global-styles": "^1.0.0",
+    "@remix-run/react": "^2.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@cloudscape-design/components": "^3.0.0",
+    "@cloudscape-design/global-styles": "^1.0.0",
+    "@remix-run/react": "^2.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "typescript": "^5.0.0"
+  }
+}

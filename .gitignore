@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+package-lock.json
+*.tsbuildinfo
+.DS_Store
+.env
+.env.*
+.cache
+.config
+.local
+.oh-my-zsh
+.z*
+.gitconfig
