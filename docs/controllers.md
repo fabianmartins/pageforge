@@ -1,14 +1,14 @@
 # Controllers
 
-Controllers are the server-side data layer. Each controller wraps an `APIClient` to provide typed methods for a single resource.
+Controllers are the data layer. Each controller wraps an `APIClient` to provide typed methods for a single resource, keeping data access separate from presentation.
+
+> All examples on this page are from the [admin-console](../examples/admin-console/) reference implementation.
 
 ## Table of Contents
 
 - [APIClient Interface](#apiclient-interface)
 - [Implementing an APIClient](#implementing-an-apiclient)
 - [Controller Pattern](#controller-pattern)
-- [Server-Only Usage](#server-only-usage)
-- [Complete Example](#complete-example)
 
 ---
 
@@ -34,14 +34,14 @@ interface APIClient {
 
 ### Simple (no auth)
 
+The admin-console example uses a simple client that calls a local Express server. From `src/api.ts`:
+
 ```typescript
 import type { APIClient } from 'pageforge';
 
-export class SimpleAPIClient implements APIClient {
-  constructor(private baseUrl: string) {}
-
+class LocalAPIClient implements APIClient {
   async call(_api: string, action: string, body: Record<string, any> = {}): Promise<any> {
-    const res = await fetch(`${this.baseUrl}/${action}`, {
+    const res = await fetch(`http://localhost:3001/${action}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -50,6 +50,8 @@ export class SimpleAPIClient implements APIClient {
     return res.json();
   }
 }
+
+export const apiClient = new LocalAPIClient();
 ```
 
 ### Bearer token (Okta, Azure AD, etc.)
@@ -90,9 +92,6 @@ Create one controller per resource. Each controller receives an `APIClient` inst
 The framework exports an abstract `BaseController` you can extend:
 
 ```typescript
-import { BaseController } from 'pageforge';
-import type { APIClient } from 'pageforge';
-
 abstract class BaseController {
   protected apiClient: APIClient;
   constructor(apiClient: APIClient);
@@ -106,132 +105,47 @@ abstract class BaseController {
 }
 ```
 
-In practice, most controllers skip `BaseController` and implement a plain class directly — the pattern is the same either way:
+### Example: ProjectController
+
+From `src/controllers/projects.ts`:
 
 ```typescript
-export class NetworkController {
-  constructor(private apiClient: APIClient) {}
-
-  async list() { return this.apiClient.call('main', 'listNetworks'); }
-  async get(id: string) { return this.apiClient.call('main', 'getNetwork', { networkId: id }); }
-  async create(data: Record<string, unknown>) { return this.apiClient.call('main', 'createNetwork', data); }
-  async delete(id: string) { return this.apiClient.call('main', 'deleteNetwork', { networkId: id }); }
-}
-```
-
----
-
-## Server-Only Usage
-
-Controllers and `APIClient` implementations that use Node.js-only dependencies must never run in the browser.
-
-### Rules
-
-1. **Use `.server.ts` suffix** for the API client singleton:
-   ```
-   app/lib/api-client.server.ts   ← Remix excludes this from client bundles
-   ```
-
-2. **Import controllers only in `loader`/`action` functions** — these run server-side in Remix:
-   ```tsx
-   // ✅ Correct — loader runs on the server
-   export async function loader() {
-     const controller = new NetworkController(apiClient);
-     const data = await controller.list();
-     return json({ items: data.networks ?? [] });
-   }
-   ```
-
-3. **Never import your APIClient implementation in a React component**:
-   ```tsx
-   // ❌ Wrong — this would bundle server code into the client
-   import { apiClient } from '~/lib/api-client.server';
-   export default function MyComponent() { /* ... */ }
-   ```
-
----
-
-## Complete Example
-
-### API Client Singleton
-
-```typescript
-// app/lib/api-client.server.ts
-import { SimpleAPIClient } from './simple-client';
-
-export const apiClient = new SimpleAPIClient('http://localhost:3001');
-```
-
-### Controller
-
-```typescript
-// app/controllers/network.controller.ts
+import { BaseController } from 'pageforge';
 import type { APIClient } from 'pageforge';
 
-export class NetworkController {
-  constructor(private apiClient: APIClient) {}
-
-  async list() {
-    return this.apiClient.call('main', 'listNetworks');
+export class ProjectController extends BaseController {
+  constructor(apiClient: APIClient) {
+    super(apiClient);
   }
 
-  async get(id: string) {
-    return this.apiClient.call('main', 'getNetwork', { networkId: id });
-  }
-
-  async create(data: Record<string, unknown>) {
-    return this.apiClient.call('main', 'createNetwork', data);
-  }
-
-  async delete(id: string) {
-    return this.apiClient.call('main', 'deleteNetwork', { networkId: id });
-  }
+  async list() { return this.apiClient.call('main', 'projects/list'); }
+  async get(id: string) { return this.apiClient.call('main', 'projects/get', { id }); }
+  async create(data: any) { return this.apiClient.call('main', 'projects/create', data); }
+  async update(id: string, data: any) { return this.apiClient.call('main', 'projects/update', { id, ...data }); }
+  async delete(id: string) { return this.apiClient.call('main', 'projects/delete', { id }); }
 }
 ```
 
-### Route Using the Controller
+### Using Controllers in Routes
+
+Instantiate the controller with your `APIClient` and call its methods from route components:
 
 ```tsx
-// app/routes/_app.networks.tsx
-import { json, type ActionFunctionArgs } from '@remix-run/node';
-import { useLoaderData, useNavigate, useFetcher } from '@remix-run/react';
-import { ListPage, type ListPageConfig } from 'pageforge';
-import { apiClient } from '~/lib/api-client.server';
-import { NetworkController } from '~/controllers/network.controller';
-import config from '~/pages/networks.json';
+// src/routes/ProjectList.tsx
+import { ProjectController } from '../controllers/projects';
+import { apiClient } from '../api';
 
-const listConfig: ListPageConfig = config;
+const controller = new ProjectController(apiClient);
 
-const controller = new NetworkController(apiClient);
+export function ProjectList() {
+  const [items, setItems] = useState<any[]>([]);
 
-export async function loader() {
-  const data = await controller.list();
-  return json({ items: data.networks ?? [] });
-}
+  useEffect(() => {
+    controller.list().then(data => setItems(data.items));
+  }, []);
 
-export async function action({ request }: ActionFunctionArgs) {
-  const formData = await request.formData();
-  await controller.delete(formData.get('id') as string);
-  return json({ success: true });
-}
-
-export default function NetworksRoute() {
-  const { items } = useLoaderData<typeof loader>();
-  const navigate = useNavigate();
-  const fetcher = useFetcher();
-
-  return (
-    <ListPage
-      config={listConfig}
-      items={items}
-      loading={fetcher.state === 'submitting'}
-      onAction={(action, selected) => {
-        if (action === 'create') navigate('/networks/create');
-        if (action === 'delete' && selected?.[0]) {
-          fetcher.submit({ id: selected[0].id }, { method: 'post' });
-        }
-      }}
-    />
-  );
+  // ... render with ListPage
 }
 ```
+
+This keeps route components focused on presentation while controllers handle all data access. To swap backends (e.g., from a local Express server to API Gateway), you only change the `APIClient` implementation — controllers and routes stay the same.
