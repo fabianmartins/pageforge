@@ -1,7 +1,7 @@
 {
   "name": "pageforge",
   "version": "0.1.0",
-  "description": "A JSON-driven page framework for building admin consoles with React, Cloudscape Design System, and AWS API Gateway.",
+  "description": "A config-driven framework for building admin consoles with React, Remix, and Cloudscape Design System.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -22,13 +22,13 @@
   },
   "keywords": [
     "react",
+    "remix",
     "cloudscape",
     "admin-console",
-    "json-config",
-    "aws",
-    "sigv4",
+    "config-driven",
+    "typescript",
     "i18n",
-    "remix"
+    "framework"
   ],
   "author": "",
   "license": "Apache-2.0",
@@ -37,11 +37,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/your-org/pageforge.git"
+    "url": "git+https://github.com/fabianmartins/pageforge.git"
   },
-  "homepage": "https://github.com/your-org/pageforge#readme",
+  "homepage": "https://github.com/fabianmartins/pageforge#readme",
   "bugs": {
-    "url": "https://github.com/your-org/pageforge/issues"
+    "url": "https://github.com/fabianmartins/pageforge/issues"
   },
   "peerDependencies": {
     "@cloudscape-design/components": "^3.0.0",
