@@ -21,18 +21,41 @@ Page configs are JSON files that declaratively describe the structure of list, f
 
 ## PageConfig (Top-Level)
 
-Every page config file shares this top-level structure:
+`PageConfig` is a discriminated union — each variant pairs a `type` with its corresponding layout:
 
 ```typescript
-interface PageConfig {
-  page: string;                              // Human-readable page name
-  model: string;                             // Resource model name
-  type: 'list' | 'form' | 'detail';         // Page type
-  layout: ListLayout | FormLayout | DetailLayout;  // Type-specific layout
+interface ListPageConfig {
+  page: string;        // Human-readable page name
+  model: string;       // Resource model name
+  type: 'list';
+  layout: ListLayout;
 }
+
+interface DetailPageConfig {
+  page: string;
+  model: string;
+  type: 'detail';
+  layout: DetailLayout;
+}
+
+interface FormPageConfig {
+  page: string;
+  model: string;
+  type: 'form';
+  layout: FormLayout;
+}
+
+type PageConfig = ListPageConfig | DetailPageConfig | FormPageConfig;
 ```
 
-The `type` field determines which layout shape is expected and which component renders it (`ListPage`, `FormPage`, or a custom detail view).
+Because `type` is the discriminant, TypeScript narrows `config.layout` automatically when you check `config.type`:
+
+```typescript
+if (config.type === 'list') {
+  // config.layout is ListLayout here
+  config.layout.columns; // ✅ no cast needed
+}
+```
 
 ---
 

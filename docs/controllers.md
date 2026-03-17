@@ -195,10 +195,12 @@ export class NetworkController {
 // app/routes/_app.networks.tsx
 import { json, type ActionFunctionArgs } from '@remix-run/node';
 import { useLoaderData, useNavigate, useFetcher } from '@remix-run/react';
-import { ListPage } from 'pageforge';
+import { ListPage, type ListPageConfig } from 'pageforge';
 import { apiClient } from '~/lib/api-client.server';
 import { NetworkController } from '~/controllers/network.controller';
 import config from '~/pages/networks.json';
+
+const listConfig: ListPageConfig = config;
 
 const controller = new NetworkController(apiClient);
 
@@ -220,7 +222,7 @@ export default function NetworksRoute() {
 
   return (
     <ListPage
-      config={config}
+      config={listConfig}
       items={items}
       loading={fetcher.state === 'submitting'}
       onAction={(action, selected) => {

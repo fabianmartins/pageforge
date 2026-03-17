@@ -9,12 +9,13 @@ This guide walks you from zero to a running admin console powered by `pageforge`
 - [1. Prerequisites](#1-prerequisites)
 - [2. Create a Remix App](#2-create-a-remix-app)
 - [3. Install Dependencies](#3-install-dependencies)
-- [4. Project Structure](#4-project-structure)
-- [5. Create a Controller](#5-create-a-controller)
-- [6. Create a Page Config](#6-create-a-page-config)
-- [7. Create a Route](#7-create-a-route)
-- [8. Set Up the App Layout](#8-set-up-the-app-layout)
-- [9. Run It](#9-run-it)
+- [4. Client-Only Rendering (Critical)](#4-client-only-rendering-critical)
+- [5. Project Structure](#5-project-structure)
+- [6. Create a Controller](#6-create-a-controller)
+- [7. Create a Page Config](#7-create-a-page-config)
+- [8. Create a Route](#8-create-a-route)
+- [9. Set Up the App Layout](#9-set-up-the-app-layout)
+- [10. Run It](#10-run-it)
 
 ---
 
@@ -37,7 +38,26 @@ npm install pageforge @cloudscape-design/components @cloudscape-design/global-st
 
 The framework has peer dependencies on React 18+ and Remix v2, which the template already provides.
 
-## 4. Project Structure
+## 4. Client-Only Rendering (Critical)
+
+Cloudscape components use `useLayoutEffect` and DOM measurements that produce different output on the server vs the client. This causes **React hydration errors** with Remix's SSR. You must wrap any Cloudscape component usage in a `ClientOnly` wrapper.
+
+Create this component before building any pages:
+
+```tsx
+// app/components/client-only.tsx
+import { useState, useEffect } from 'react';
+
+export function ClientOnly({ children }: { children: () => React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  return mounted ? <>{children()}</> : null;
+}
+```
+
+You'll use this in your layout and route files — every route that renders Cloudscape components should be wrapped with `<ClientOnly>`.
+
+## 5. Project Structure
 
 Organize your app with these folders:
 
@@ -71,7 +91,7 @@ Key conventions:
 - **`pages/`** — JSON files that describe page layout, columns, fields, and actions.
 - **`routes/_app.*`** — All routes nested under `_app.tsx` share the app shell (top nav, side nav, layout).
 
-## 5. Create a Controller
+## 6. Create a Controller
 
 Controllers run server-side only. Use the `.server.ts` suffix or only import them in Remix `loader`/`action` functions.
 
@@ -126,7 +146,7 @@ export class NetworkController {
 }
 ```
 
-## 6. Create a Page Config
+## 7. Create a Page Config
 
 ```json
 // app/pages/networks.json
@@ -159,13 +179,14 @@ export class NetworkController {
 
 Labels like `page.networks.title` are i18n translation keys. They get resolved at render time via the `t()` function. See the [i18n guide](i18n.md).
 
-## 7. Create a Route
+## 8. Create a Route
 
 ```tsx
 // app/routes/_app.networks.tsx
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from '@remix-run/node';
 import { useLoaderData, useNavigate, useFetcher } from '@remix-run/react';
 import { ListPage } from 'pageforge';
+import type { ListPageConfig } from 'pageforge';
 import { apiClient } from '~/lib/api-client.server';
 import { NetworkController } from '~/controllers/network.controller';
 import config from '~/pages/networks.json';
@@ -198,7 +219,7 @@ export default function NetworksRoute() {
 
   return (
     <ListPage
-      config={config}
+      config={config as ListPageConfig}
       items={items}
       loading={fetcher.state === 'submitting'}
       onAction={handleAction}
@@ -207,20 +228,17 @@ export default function NetworksRoute() {
 }
 ```
 
-## 8. Set Up the App Layout
+## 9. Set Up the App Layout
 
-The `_app.tsx` layout route wraps all nested routes with the Cloudscape app shell:
+The `_app.tsx` layout route wraps all nested routes with the `AppShell` component from pageforge:
 
 ```tsx
 // app/routes/_app.tsx
-import { useState } from 'react';
-import { Outlet, useLocation, useNavigate } from '@remix-run/react';
-import TopNavigation from '@cloudscape-design/components/top-navigation';
-import AppLayout from '@cloudscape-design/components/app-layout';
-import SideNavigation from '@cloudscape-design/components/side-navigation';
-import '@cloudscape-design/global-styles/index.css';
-import { I18nProvider } from 'pageforge';
+import { Outlet, useLocation } from '@remix-run/react';
+import { AppShell, I18nProvider } from 'pageforge';
 import type { NavItem } from 'pageforge';
+import { ClientOnly } from '~/components/client-only';
+import '@cloudscape-design/global-styles/index.css';
 
 const TRANSLATIONS = {
   en: {
@@ -249,30 +267,27 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export default function AppLayoutRoute() {
-  const [locale] = useState('en');
   const location = useLocation();
-  const navigate = useNavigate();
 
   return (
-    <I18nProvider locale={locale} translations={TRANSLATIONS}>
-      <TopNavigation identity={{ href: '/', title: 'My Console' }} i18nStrings={{ overflowMenuTriggerText: 'More' }} />
-      <AppLayout
-        toolsHide
-        navigation={
-          <SideNavigation
-            activeHref={location.pathname}
-            items={NAV_ITEMS}
-            onFollow={(e) => { e.preventDefault(); navigate(e.detail.href); }}
-          />
-        }
-        content={<Outlet />}
-      />
+    <I18nProvider locale="en" translations={TRANSLATIONS}>
+      <ClientOnly>{() =>
+        <AppShell navigation={NAV_ITEMS} activeHref={location.pathname}>
+          <Outlet />
+        </AppShell>
+      }</ClientOnly>
     </I18nProvider>
   );
 }
 ```
 
-## 9. Run It
+`AppShell` handles the top navigation, side navigation, and Cloudscape `AppLayout` internally. You pass it:
+- `navigation` — array of `NavItem` objects for the side nav
+- `activeHref` — highlights the current nav item
+- `breadcrumbs` (optional) — array of `{ text: string; href: string }`
+- `children` — your page content (typically `<Outlet />`)
+
+## 10. Run It
 
 ```bash
 npm run dev
@@ -282,42 +297,7 @@ Open [http://localhost:5173/networks](http://localhost:5173/networks). You shoul
 
 ---
 
-## Important: Remix + Cloudscape Patterns
-
-### Client-Only Rendering
-
-Cloudscape components use browser-only APIs (`useLayoutEffect`, DOM measurements) that produce different output on the server vs the client. This causes React hydration errors with Remix's SSR.
-
-The fix is to wrap pages that use Cloudscape components in a `ClientOnly` wrapper:
-
-```tsx
-// app/components/client-only.tsx
-import { useState, useEffect } from 'react';
-
-export function ClientOnly({ children }: { children: () => React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  return mounted ? <>{children()}</> : null;
-}
-```
-
-Then use it in your routes:
-
-```tsx
-import { ClientOnly } from '~/components/client-only';
-
-export default function MyRoute() {
-  return (
-    <ClientOnly>{() =>
-      <AppShell navigation={navigation} breadcrumbs={breadcrumbs}>
-        <ListPage config={config} items={items} />
-      </AppShell>
-    }</ClientOnly>
-  );
-}
-```
-
-### Route Naming for Independent Pages
+## Remix Route Patterns
 
 Remix nests routes by default. A file named `projects.create.tsx` renders inside `projects.tsx`'s `<Outlet />`. For pageforge, each page (list, create, detail, edit) is a standalone page with its own `AppShell`.
 
