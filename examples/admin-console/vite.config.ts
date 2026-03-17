@@ -1,10 +1,7 @@
 import { defineConfig } from 'vite';
-import { vitePlugin as remix } from '@remix-run/dev';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  plugins: [remix()],
+  plugins: [react()],
   server: { port: 3000 },
-  ssr: {
-    noExternal: [/^@cloudscape-design\//, 'pageforge'],
-  },
 });

@@ -1,14 +1,18 @@
 # PageForge Reference Implementation — Admin Console
 
-A working example of a pageforge-powered admin console backed by DynamoDB Local and Express.
+A working example of a pageforge-powered admin console. Built as a static SPA with Vite + React Router, backed by DynamoDB Local and Express for development.
+
+The built output (`dist/`) is plain HTML/JS/CSS that can be deployed to S3 + CloudFront or any static hosting.
 
 ## Architecture
 
 ```
-Browser → Remix (port 3000) → Express API (port 3001) → DynamoDB Local (port 8000)
+Browser (SPA) → Express API (port 3001) → DynamoDB Local (port 8000)
+     ↑
+  Vite dev server (port 3000) or S3 + CloudFront (production)
 ```
 
-- **Remix frontend** uses pageforge components (`AppShell`, `ListPage`, `FormPage`) driven by JSON page configs
+- **Vite SPA** uses pageforge components (`AppShell`, `ListPage`, `FormPage`) driven by JSON page configs
 - **Express API** provides a simple REST-like backend (mimics API Gateway)
 - **DynamoDB Local** stores data without needing an AWS account
 
@@ -48,23 +52,29 @@ npm run db:seed
 npm run dev
 ```
 
-This starts both the Express API (port 3001) and Remix dev server (port 3000) concurrently.
+This starts both the Express API (port 3001) and Vite dev server (port 3000) concurrently.
 
 Open http://localhost:3000/projects to see the admin console.
+
+## Build for Production
+
+```bash
+npm run build
+```
+
+The `dist/` folder contains static assets ready for deployment to S3, CloudFront, Netlify, or any static host. You'll need to configure your API URL for production (see `src/api.ts`).
 
 ## What This Demonstrates
 
 | PageForge Feature | Where |
 |---|---|
-| `ListPage` with search, badges, links | `app/routes/projects.tsx` |
-| `FormPage` with create and edit forms | `app/routes/projects_.create.tsx`, `projects_.$id_.edit.tsx` |
-| `FormPage` with `initialData` for editing | `app/routes/projects_.$id_.edit.tsx` |
+| `ListPage` with search, badges, links, delete | `src/routes/ProjectList.tsx` |
+| `FormPage` for creating resources | `src/routes/ProjectCreate.tsx` |
+| `FormPage` with `initialData` for editing | `src/routes/ProjectEdit.tsx` |
 | `AppShell` with navigation + breadcrumbs | All routes |
-| `I18nProvider` | `app/root.tsx` |
-| `BaseController` subclass | `app/controllers/projects.ts` |
-| `ClientOnly` wrapper for SSR compatibility | All routes |
-| JSON page configs | `app/configs/projects.ts` |
-| Remix route naming (`_` escape) | `app/routes/` |
+| `I18nProvider` | `src/main.tsx` |
+| JSON page configs (list, create, edit) | `src/configs/projects.ts` |
+| React Router with standard route paths | `src/App.tsx` |
 
 ## Ideas to Extend This Example
 
@@ -73,7 +83,6 @@ Open http://localhost:3000/projects to see the admin console.
 As the number of actions grows, individual buttons become cluttered. Cloudscape's `ButtonDropdown` component lets you group related actions into a single dropdown. You could extend `ActionConfig` to support this:
 
 ```typescript
-// In your page config:
 actions: [
   { label: 'Create project', variant: 'primary', action: 'create' },
   {
@@ -82,12 +91,16 @@ actions: [
     items: [
       { label: 'Edit', action: 'edit', requiresSelection: true },
       { label: 'Clone', action: 'clone', requiresSelection: true },
-      { label: 'Archive', action: 'archive', requiresSelection: true },
-      { label: 'Export', action: 'export' },
       { label: 'Delete', action: 'delete', requiresSelection: true },
     ],
   },
 ]
 ```
 
-This would require adding `type?: 'dropdown'` and `items?: ActionConfig[]` to the `ActionConfig` type, and rendering a `ButtonDropdown` in `ListPage` when `type === 'dropdown'`.
+### APIClient Implementations
+
+The example uses a simple `fetch` wrapper (`src/api.ts`). For production, implement the `APIClient` interface with your auth strategy:
+
+- **AWS SigV4** — see `server/sigv4-client.ts` (reference)
+- **Bearer token** (Okta, Azure AD) — add an `Authorization` header
+- **No auth** — use the simple client as-is for internal tools

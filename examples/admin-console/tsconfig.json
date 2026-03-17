@@ -12,5 +12,5 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": ["app", "server"]
+  "include": ["src", "server"]
 }

@@ -7,7 +7,7 @@ import TextFilter from '@cloudscape-design/components/text-filter';
 import Pagination from '@cloudscape-design/components/pagination';
 import StatusIndicator from '@cloudscape-design/components/status-indicator';
 import Box from '@cloudscape-design/components/box';
-import { Link } from '@remix-run/react';
+import { Link } from 'react-router-dom';
 import type { ListPageConfig, ColumnConfig } from '../types.js';
 import { useI18n } from '../i18n.js';
 

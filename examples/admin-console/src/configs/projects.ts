@@ -1,6 +1,6 @@
-import type { PageConfig } from 'pageforge';
+import type { ListPageConfig, FormPageConfig } from 'pageforge';
 
-export const projectListConfig: PageConfig = {
+export const projectListConfig: ListPageConfig = {
   page: 'projects',
   model: 'project',
   type: 'list',
@@ -28,7 +28,7 @@ export const projectListConfig: PageConfig = {
   },
 };
 
-export const projectFormConfig: PageConfig = {
+export const projectFormConfig: FormPageConfig = {
   page: 'projects/create',
   model: 'project',
   type: 'form',
@@ -52,7 +52,7 @@ export const projectFormConfig: PageConfig = {
   },
 };
 
-export const projectEditConfig: PageConfig = {
+export const projectEditConfig: FormPageConfig = {
   page: 'projects/edit',
   model: 'project',
   type: 'form',
