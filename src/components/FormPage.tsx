@@ -8,11 +8,11 @@ import Button from '@cloudscape-design/components/button';
 import SpaceBetween from '@cloudscape-design/components/space-between';
 import Header from '@cloudscape-design/components/header';
 import Container from '@cloudscape-design/components/container';
-import type { PageConfig, FormLayout } from '../types.js';
+import type { FormPageConfig } from '../types.js';
 import { useI18n } from '../i18n.js';
 
 interface FormPageProps {
-  config: PageConfig;
+  config: FormPageConfig;
   onSubmit: (data: any) => void;
   onCancel?: () => void;
   loading?: boolean;
@@ -21,7 +21,7 @@ interface FormPageProps {
 
 export function FormPage({ config, onSubmit, onCancel, loading, initialData }: FormPageProps) {
   const { t } = useI18n();
-  const layout = config.layout as FormLayout;
+  const layout = config.layout;
   const [formData, setFormData] = useState<Record<string, any>>(initialData ?? {});
 
   const setValue = (key: string, value: any) =>

@@ -51,12 +51,28 @@ export interface DetailLayout {
   sections: SectionConfig[];
 }
 
-export interface PageConfig {
+export interface ListPageConfig {
   page: string;
   model: string;
-  type: 'list' | 'detail' | 'form';
-  layout: ListLayout | DetailLayout | FormLayout;
+  type: 'list';
+  layout: ListLayout;
 }
+
+export interface DetailPageConfig {
+  page: string;
+  model: string;
+  type: 'detail';
+  layout: DetailLayout;
+}
+
+export interface FormPageConfig {
+  page: string;
+  model: string;
+  type: 'form';
+  layout: FormLayout;
+}
+
+export type PageConfig = ListPageConfig | DetailPageConfig | FormPageConfig;
 
 export interface NavItem {
   type: 'section' | 'link';
