@@ -7,15 +7,14 @@ This guide walks you from zero to a running admin console powered by `pageforge`
 ## Table of Contents
 
 - [1. Prerequisites](#1-prerequisites)
-- [2. Create a Remix App](#2-create-a-remix-app)
+- [2. Create a Vite + React App](#2-create-a-vite--react-app)
 - [3. Install Dependencies](#3-install-dependencies)
-- [4. Client-Only Rendering (Critical)](#4-client-only-rendering-critical)
-- [5. Project Structure](#5-project-structure)
-- [6. Create a Controller](#6-create-a-controller)
-- [7. Create a Page Config](#7-create-a-page-config)
-- [8. Create a Route](#8-create-a-route)
-- [9. Set Up the App Layout](#9-set-up-the-app-layout)
-- [10. Run It](#10-run-it)
+- [4. Project Structure](#4-project-structure)
+- [5. Create a Page Config](#5-create-a-page-config)
+- [6. Create an API Client and Controller](#6-create-an-api-client-and-controller)
+- [7. Create a Route](#7-create-a-route)
+- [8. Set Up the App Entry](#8-set-up-the-app-entry)
+- [9. Build and Deploy](#9-build-and-deploy)
 
 ---
 
@@ -23,90 +22,97 @@ This guide walks you from zero to a running admin console powered by `pageforge`
 
 - **Node.js 18+** and **npm**
 
-## 2. Create a Remix App
+## 2. Create a Vite + React App
 
 ```bash
-npx create-remix@latest my-console --template remix-run/remix/templates/vite
+npm create vite@latest my-console -- --template react-ts
 cd my-console
 ```
 
 ## 3. Install Dependencies
 
 ```bash
-npm install pageforge @cloudscape-design/components @cloudscape-design/global-styles
+npm install pageforge @cloudscape-design/components @cloudscape-design/global-styles react-router-dom
 ```
 
-The framework has peer dependencies on React 18+ and Remix v2, which the template already provides.
+## 4. Project Structure
 
-## 4. Client-Only Rendering (Critical)
-
-Cloudscape components use `useLayoutEffect` and DOM measurements that produce different output on the server vs the client. This causes **React hydration errors** with Remix's SSR. You must wrap any Cloudscape component usage in a `ClientOnly` wrapper.
-
-Create this component before building any pages:
-
-```tsx
-// app/components/client-only.tsx
-import { useState, useEffect } from 'react';
-
-export function ClientOnly({ children }: { children: () => React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  return mounted ? <>{children()}</> : null;
-}
-```
-
-You'll use this in your layout and route files — every route that renders Cloudscape components should be wrapped with `<ClientOnly>`.
-
-## 5. Project Structure
-
-Organize your app with these folders:
+Here's how the [admin-console example](../examples/admin-console/) is organized:
 
 ```
-app/
-├── config/          # API URLs, navigation items
-│   ├── api.ts
-│   └── navigation.ts
-├── controllers/     # Server-side API controllers (one per resource)
-│   └── network.controller.ts
-├── i18n/            # Translation files (one per locale)
-│   ├── en.ts
-│   ├── es.ts
-│   └── index.ts
-├── lib/             # Shared server utilities
-│   └── api-client.server.ts
-├── pages/           # JSON page configs
-│   └── networks.json
-├── routes/          # Remix routes
-│   ├── _app.tsx              # App shell layout
-│   ├── _app._index.tsx       # Dashboard
-│   ├── _app.networks.tsx     # List page
-│   ├── _app.networks.create.tsx
-│   └── _app.networks.$id.tsx # Detail page
-└── root.tsx
+src/
+├── configs/
+│   └── projects.ts           # Page configs (list, create, edit)
+├── controllers/
+│   └── projects.ts           # Controller extending BaseController
+├── routes/
+│   ├── ProjectList.tsx        # /projects
+│   ├── ProjectCreate.tsx      # /projects/create
+│   ├── ProjectDetail.tsx      # /projects/:id
+│   └── ProjectEdit.tsx        # /projects/:id/edit
+├── api.ts                     # APIClient implementation
+├── navigation.ts              # Sidebar navigation config
+├── App.tsx                    # React Router routes
+└── main.tsx                   # Entry point with BrowserRouter + I18nProvider
+index.html                     # SPA entry HTML
 ```
 
 Key conventions:
-- **`config/`** — Static configuration (API endpoints, nav structure).
+- **`configs/`** — Page configs that describe layout, columns, fields, and actions.
 - **`controllers/`** — One class per resource. Each wraps `APIClient` calls.
-- **`pages/`** — JSON files that describe page layout, columns, fields, and actions.
-- **`routes/_app.*`** — All routes nested under `_app.tsx` share the app shell (top nav, side nav, layout).
+- **`routes/`** — One component per page. Each uses a controller for data access.
+- **`api.ts`** — Your `APIClient` implementation (swap for SigV4, Bearer, etc.).
 
-## 6. Create a Controller
+## 5. Create a Page Config
 
-Controllers run server-side only. Use the `.server.ts` suffix or only import them in Remix `loader`/`action` functions.
-
-First, create a shared API client instance. `APIClient` is an interface — you provide the implementation that matches your auth strategy:
+Page configs describe what a page looks like — columns, fields, actions — without any rendering code. Here's the project list config from the example:
 
 ```typescript
-// app/lib/api-client.server.ts
+// src/configs/projects.ts
+import type { ListPageConfig } from 'pageforge';
+
+export const projectListConfig: ListPageConfig = {
+  page: 'projects',
+  model: 'project',
+  type: 'list',
+  layout: {
+    title: 'Projects',
+    description: 'Manage your projects',
+    searchable: true,
+    pagination: true,
+    columns: [
+      { key: 'name', label: 'Name', sortable: true, type: 'link', linkPath: '/projects/{id}' },
+      { key: 'owner', label: 'Owner', sortable: true },
+      {
+        key: 'status', label: 'Status', sortable: true, type: 'badge',
+        badgeMap: {
+          active: { color: 'success', label: 'Active' },
+          planning: { color: 'info', label: 'Planning' },
+          completed: { color: 'stopped', label: 'Completed' },
+        },
+      },
+    ],
+    actions: [
+      { label: 'Create project', variant: 'primary', action: 'create' },
+      { label: 'Delete', action: 'delete', requiresSelection: true },
+    ],
+  },
+};
+```
+
+See [Page Configs](page-configs.md) for the full schema reference.
+
+## 6. Create an API Client and Controller
+
+`APIClient` is an interface — you provide the implementation that matches your auth strategy. Here's the simple client from the example:
+
+```typescript
+// src/api.ts
 import type { APIClient } from 'pageforge';
 
-// Simple implementation — replace with your own auth (SigV4, Bearer, etc.)
-class MyAPIClient implements APIClient {
-  constructor(private baseUrl: string) {}
-
+class LocalAPIClient implements APIClient {
   async call(_api: string, action: string, body: Record<string, any> = {}): Promise<any> {
-    const res = await fetch(`${this.baseUrl}/${action}`, {
+    const res = await fetch(`http://localhost:3001/${action}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -116,206 +122,139 @@ class MyAPIClient implements APIClient {
   }
 }
 
-export const apiClient = new MyAPIClient('https://api.example.com');
+export const apiClient = new LocalAPIClient();
 ```
 
-Then create a controller for your resource:
+Then create a controller that separates data access from presentation:
 
 ```typescript
-// app/controllers/network.controller.ts
+// src/controllers/projects.ts
+import { BaseController } from 'pageforge';
 import type { APIClient } from 'pageforge';
 
-export class NetworkController {
-  constructor(private apiClient: APIClient) {}
-
-  async list() {
-    return this.apiClient.call('main', 'listNetworks');
+export class ProjectController extends BaseController {
+  constructor(apiClient: APIClient) {
+    super(apiClient);
   }
 
-  async get(id: string) {
-    return this.apiClient.call('main', 'getNetwork', { networkId: id });
-  }
-
-  async create(data: Record<string, unknown>) {
-    return this.apiClient.call('main', 'createNetwork', data);
-  }
-
-  async delete(id: string) {
-    return this.apiClient.call('main', 'deleteNetwork', { networkId: id });
-  }
+  async list() { return this.apiClient.call('main', 'projects/list'); }
+  async get(id: string) { return this.apiClient.call('main', 'projects/get', { id }); }
+  async create(data: any) { return this.apiClient.call('main', 'projects/create', data); }
+  async update(id: string, data: any) { return this.apiClient.call('main', 'projects/update', { id, ...data }); }
+  async delete(id: string) { return this.apiClient.call('main', 'projects/delete', { id }); }
 }
 ```
 
-## 7. Create a Page Config
+See [Controllers](controllers.md) for more patterns and auth strategies.
 
-```json
-// app/pages/networks.json
-{
-  "page": "Networks",
-  "model": "Network",
-  "type": "list",
-  "layout": {
-    "title": "page.networks.title",
-    "description": "page.networks.description",
-    "searchable": true,
-    "pagination": true,
-    "columns": [
-      { "key": "id", "label": "col.networks.id", "sortable": true, "type": "link", "linkPath": "/networks/{id}" },
-      { "key": "name", "label": "col.common.name", "sortable": true },
-      { "key": "status", "label": "col.common.status", "sortable": true, "type": "badge", "badgeMap": {
-        "ACTIVE": { "color": "success" },
-        "PENDING_CREATE": { "color": "in-progress" },
-        "CREATE_FAILED": { "color": "error" }
-      }},
-      { "key": "ipv4Cidr", "label": "col.networks.ipv4Cidr" }
-    ],
-    "actions": [
-      { "label": "action.networks.delete", "action": "delete", "requiresSelection": true },
-      { "label": "action.networks.create", "variant": "primary", "action": "create" }
-    ]
-  }
-}
-```
+## 7. Create a Route
 
-Labels like `page.networks.title` are i18n translation keys. They get resolved at render time via the `t()` function. See the [i18n guide](i18n.md).
-
-## 8. Create a Route
+Each route uses a controller for data and a pageforge component for rendering:
 
 ```tsx
-// app/routes/_app.networks.tsx
-import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from '@remix-run/node';
-import { useLoaderData, useNavigate, useFetcher } from '@remix-run/react';
-import { ListPage } from 'pageforge';
-import type { ListPageConfig } from 'pageforge';
-import { apiClient } from '~/lib/api-client.server';
-import { NetworkController } from '~/controllers/network.controller';
-import config from '~/pages/networks.json';
+// src/routes/ProjectList.tsx
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AppShell, ListPage } from 'pageforge';
+import { projectListConfig } from '../configs/projects';
+import { navigation } from '../navigation';
+import { ProjectController } from '../controllers/projects';
+import { apiClient } from '../api';
 
-const controller = new NetworkController(apiClient);
+const controller = new ProjectController(apiClient);
 
-export async function loader() {
-  const data = await controller.list();
-  return json({ items: data.networks ?? [] });
-}
-
-export async function action({ request }: ActionFunctionArgs) {
-  const formData = await request.formData();
-  const id = formData.get('id') as string;
-  await controller.delete(id);
-  return json({ success: true });
-}
-
-export default function NetworksRoute() {
-  const { items } = useLoaderData<typeof loader>();
+export function ProjectList() {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const fetcher = useFetcher();
+
+  const load = () => {
+    setLoading(true);
+    controller.list().then(data => { setItems(data.items); setLoading(false); });
+  };
+
+  useEffect(() => { load(); }, []);
 
   const handleAction = (action: string, selected?: any[]) => {
-    if (action === 'create') navigate('/networks/create');
-    if (action === 'delete' && selected?.[0]) {
-      fetcher.submit({ id: selected[0].id }, { method: 'post' });
+    if (action === 'create') navigate('/projects/create');
+    if (action === 'delete' && selected?.length) {
+      Promise.all(selected.map(item => controller.delete(item.id)))
+        .then(() => load());
     }
   };
 
   return (
-    <ListPage
-      config={config as ListPageConfig}
-      items={items}
-      loading={fetcher.state === 'submitting'}
-      onAction={handleAction}
-    />
+    <AppShell
+      navigation={navigation}
+      breadcrumbs={[{ text: 'Home', href: '/' }, { text: 'Projects', href: '/projects' }]}
+      activeHref="/projects"
+    >
+      <ListPage config={projectListConfig} items={items} loading={loading} onAction={handleAction} />
+    </AppShell>
   );
 }
 ```
 
-## 9. Set Up the App Layout
-
-The `_app.tsx` layout route wraps all nested routes with the `AppShell` component from pageforge:
+## 8. Set Up the App Entry
 
 ```tsx
-// app/routes/_app.tsx
-import { Outlet, useLocation } from '@remix-run/react';
-import { AppShell, I18nProvider } from 'pageforge';
-import type { NavItem } from 'pageforge';
-import { ClientOnly } from '~/components/client-only';
+// src/main.tsx
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import { I18nProvider } from 'pageforge';
 import '@cloudscape-design/global-styles/index.css';
+import { App } from './App';
 
-const TRANSLATIONS = {
+const translations = {
   en: {
-    'nav.dashboard': 'Dashboard',
-    'nav.networks': 'Networks',
-    'page.networks.title': 'Networks',
-    'page.networks.description': 'Manage your networks.',
-    'col.networks.id': 'Network ID',
-    'col.common.name': 'Name',
-    'col.common.status': 'Status',
-    'col.networks.ipv4Cidr': 'IPv4 CIDR',
-    'action.networks.delete': 'Delete',
-    'action.networks.create': 'Create network',
+    'list.loading': 'Loading resources...',
+    'list.emptyTitle': 'No projects',
+    'list.emptyDescription': 'Create a project to get started.',
   },
 };
 
-const NAV_ITEMS: NavItem[] = [
-  { type: 'link', text: 'Dashboard', href: '/' },
-  {
-    type: 'section',
-    text: 'Resources',
-    items: [
-      { type: 'link', text: 'Networks', href: '/networks' },
-    ],
-  },
-];
-
-export default function AppLayoutRoute() {
-  const location = useLocation();
-
-  return (
-    <I18nProvider locale="en" translations={TRANSLATIONS}>
-      <ClientOnly>{() =>
-        <AppShell navigation={NAV_ITEMS} activeHref={location.pathname}>
-          <Outlet />
-        </AppShell>
-      }</ClientOnly>
+createRoot(document.getElementById('root')!).render(
+  <BrowserRouter>
+    <I18nProvider locale="en" translations={translations}>
+      <App />
     </I18nProvider>
+  </BrowserRouter>
+);
+```
+
+```tsx
+// src/App.tsx
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { ProjectList } from './routes/ProjectList';
+import { ProjectCreate } from './routes/ProjectCreate';
+import { ProjectDetail } from './routes/ProjectDetail';
+import { ProjectEdit } from './routes/ProjectEdit';
+
+export function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Navigate to="/projects" replace />} />
+      <Route path="/projects" element={<ProjectList />} />
+      <Route path="/projects/create" element={<ProjectCreate />} />
+      <Route path="/projects/:id" element={<ProjectDetail />} />
+      <Route path="/projects/:id/edit" element={<ProjectEdit />} />
+    </Routes>
   );
 }
 ```
 
-`AppShell` handles the top navigation, side navigation, and Cloudscape `AppLayout` internally. You pass it:
-- `navigation` — array of `NavItem` objects for the side nav
-- `activeHref` — highlights the current nav item
-- `breadcrumbs` (optional) — array of `{ text: string; href: string }`
-- `children` — your page content (typically `<Outlet />`)
-
-## 10. Run It
+## 9. Build and Deploy
 
 ```bash
+# Development
 npm run dev
+
+# Production build
+npm run build
 ```
 
-Open [http://localhost:5173/networks](http://localhost:5173/networks). You should see a Cloudscape table rendered from your JSON config, with data loaded from your API.
-
----
-
-## Remix Route Patterns
-
-Remix nests routes by default. A file named `projects.create.tsx` renders inside `projects.tsx`'s `<Outlet />`. For pageforge, each page (list, create, detail, edit) is a standalone page with its own `AppShell`.
-
-Use the `_` escape to make routes independent:
-
-```
-app/routes/
-├── projects.tsx              # /projects (list)
-├── projects_.create.tsx      # /projects/create (standalone)
-├── projects_.$id.tsx         # /projects/:id (standalone detail)
-└── projects_.$id_.edit.tsx   # /projects/:id/edit (standalone edit)
-```
-
-The `_` after a segment name tells Remix "don't nest inside the parent layout":
-- `projects_.create` → independent of `projects.tsx`
-- `$id_.edit` → independent of `$id.tsx`
-
-Without the `_`, the create/detail/edit pages would try to render inside the list page's layout, and you'd see a blank area where the `<Outlet />` should be.
+The `dist/` folder contains static HTML/CSS/JS ready for deployment to S3 + CloudFront, Netlify, or any static host.
 
 ---
 

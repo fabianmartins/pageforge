@@ -2,6 +2,8 @@
 
 The framework exports React components that render Cloudscape UI from JSON page configs. All components consume the i18n context and translate config labels automatically.
 
+> All examples on this page are from the [admin-console](../examples/admin-console/) reference implementation.
+
 ## Table of Contents
 
 - [ListPage](#listpage)
@@ -29,43 +31,60 @@ interface ListPageProps {
 }
 ```
 
-### Column Rendering
+### Usage
 
-Columns render based on their `type`:
+From `src/routes/ProjectList.tsx`:
+
+```tsx
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AppShell, ListPage } from 'pageforge';
+import { projectListConfig } from '../configs/projects';
+import { navigation } from '../navigation';
+import { ProjectController } from '../controllers/projects';
+import { apiClient } from '../api';
+
+const controller = new ProjectController(apiClient);
+
+export function ProjectList() {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  const load = () => {
+    setLoading(true);
+    controller.list().then(data => { setItems(data.items); setLoading(false); });
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleAction = (action: string, selected?: any[]) => {
+    if (action === 'create') navigate('/projects/create');
+    if (action === 'delete' && selected?.length) {
+      Promise.all(selected.map(item => controller.delete(item.id)))
+        .then(() => load());
+    }
+  };
+
+  return (
+    <AppShell
+      navigation={navigation}
+      breadcrumbs={[{ text: 'Home', href: '/' }, { text: 'Projects', href: '/projects' }]}
+      activeHref="/projects"
+    >
+      <ListPage config={projectListConfig} items={items} loading={loading} onAction={handleAction} />
+    </AppShell>
+  );
+}
+```
+
+### Column Rendering
 
 | Type | Renders | Config Required |
 |------|---------|-----------------|
 | `text` (default) | Plain text value | — |
-| `link` | Remix `<Link>` element | `linkPath` with `{key}` placeholders |
+| `link` | React Router `<Link>` element | `linkPath` with `{key}` placeholders |
 | `badge` | Cloudscape `StatusIndicator` | `badgeMap` mapping values to colors |
-
-### Usage
-
-```tsx
-import { ListPage } from 'pageforge';
-import type { ListPageConfig } from 'pageforge';
-import config from '~/pages/networks.json';
-
-export default function NetworksRoute() {
-  const { items } = useLoaderData<typeof loader>();
-  const navigate = useNavigate();
-  const fetcher = useFetcher();
-
-  return (
-    <ListPage
-      config={config}
-      items={items}
-      loading={fetcher.state === 'submitting'}
-      onAction={(action, selected) => {
-        if (action === 'create') navigate('/networks/create');
-        if (action === 'delete' && selected?.[0]) {
-          fetcher.submit({ id: selected[0].id }, { method: 'post' });
-        }
-      }}
-    />
-  );
-}
-```
 
 ### Behavior
 
@@ -84,11 +103,70 @@ Renders a Cloudscape `Form` with fields from a form-type `PageConfig`. Manages f
 
 ```typescript
 interface FormPageProps {
-  config: FormPageConfig;              // Page config with type: 'form'
-  onSubmit: (data: any) => void;       // Called with form data on submit
-  onCancel?: () => void;               // Called when cancel is clicked
-  loading?: boolean;                   // Show loading state on submit button
-  initialData?: Record<string, any>;   // Pre-populates form fields for edit forms
+  config: FormPageConfig;                  // Page config with type: 'form'
+  onSubmit: (data: any) => void;           // Called with form data on submit
+  onCancel?: () => void;                   // Called when cancel is clicked
+  loading?: boolean;                       // Show loading state on submit button
+  initialData?: Record<string, any>;       // Pre-populate fields (for edit forms)
+}
+```
+
+### Usage: Create Form
+
+From `src/routes/ProjectCreate.tsx`:
+
+```tsx
+import { useNavigate } from 'react-router-dom';
+import { AppShell, FormPage } from 'pageforge';
+import { projectFormConfig } from '../configs/projects';
+import { navigation } from '../navigation';
+import { ProjectController } from '../controllers/projects';
+import { apiClient } from '../api';
+
+const controller = new ProjectController(apiClient);
+
+export function ProjectCreate() {
+  const navigate = useNavigate();
+
+  const handleSubmit = async (data: any) => {
+    await controller.create(data);
+    navigate('/projects');
+  };
+
+  return (
+    <AppShell navigation={navigation} breadcrumbs={[...]} activeHref="/projects">
+      <FormPage config={projectFormConfig} onSubmit={handleSubmit} onCancel={() => navigate('/projects')} />
+    </AppShell>
+  );
+}
+```
+
+### Usage: Edit Form with initialData
+
+From `src/routes/ProjectEdit.tsx`:
+
+```tsx
+const controller = new ProjectController(apiClient);
+
+export function ProjectEdit() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [project, setProject] = useState<any>(null);
+
+  useEffect(() => { controller.get(id!).then(setProject); }, [id]);
+
+  if (!project) return null;
+
+  const handleSubmit = async (data: any) => {
+    await controller.update(id!, data);
+    navigate(`/projects/${id}`);
+  };
+
+  return (
+    <AppShell navigation={navigation} breadcrumbs={[...]} activeHref="/projects">
+      <FormPage config={projectEditConfig} initialData={project} onSubmit={handleSubmit} onCancel={() => navigate(`/projects/${id}`)} />
+    </AppShell>
+  );
 }
 ```
 
@@ -101,38 +179,11 @@ interface FormPageProps {
 | `textarea` | Cloudscape `Textarea` |
 | `select` | Cloudscape `Select` with translated option labels |
 
-### Usage
-
-```tsx
-import { FormPage } from 'pageforge';
-import type { FormPageConfig } from 'pageforge';
-import config from '~/pages/create-profile.json';
-
-export default function CreateProfileRoute() {
-  const navigate = useNavigate();
-  const fetcher = useFetcher();
-
-  const handleSubmit = (data: Record<string, unknown>) => {
-    fetcher.submit(data, { method: 'post' });
-  };
-
-  return (
-    <FormPage
-      config={config}
-      onSubmit={handleSubmit}
-      onCancel={() => navigate('/profiles')}
-      loading={fetcher.state === 'submitting'}
-    />
-  );
-}
-```
-
 ### Behavior
 
-- **State management** — `FormPage` tracks all field values in internal state. The `onSubmit` callback receives a `Record<string, any>` with keys matching `FieldConfig.key`.
-- **Cancel** — If `onCancel` is provided, a cancel button appears. The `cancelPath` in the config is informational; the component delegates navigation to your callback.
+- **State management** — `FormPage` tracks all field values in internal state, initialized from `initialData` if provided.
+- **Cancel** — If `onCancel` is provided, a cancel button appears.
 - **Submit label** — Uses `layout.submitLabel` (translated) or falls back to `"Submit"`.
-- **Select options** — Option labels are passed through `t()` for translation.
 
 ---
 
@@ -164,37 +215,32 @@ interface NavItem {
 
 ### Usage
 
-```tsx
-import { AppShell } from 'pageforge';
+From `src/navigation.ts`:
+
+```typescript
 import type { NavItem } from 'pageforge';
 
-const NAV: NavItem[] = [
-  { type: 'link', text: 'Dashboard', href: '/' },
+export const navigation: NavItem[] = [
   {
     type: 'section',
-    text: 'Resources',
+    text: 'Management',
     items: [
-      { type: 'link', text: 'Networks', href: '/networks' },
-      { type: 'link', text: 'Subnets', href: '/subnets' },
+      { type: 'link', text: 'Projects', href: '/projects' },
     ],
   },
 ];
+```
 
-export default function Layout() {
-  const location = useLocation();
-  return (
-    <AppShell
-      navigation={NAV}
-      breadcrumbs={[
-        { text: 'Home', href: '/' },
-        { text: 'Networks', href: '/networks' },
-      ]}
-      activeHref={location.pathname}
-    >
-      <Outlet />
-    </AppShell>
-  );
-}
+Used in every route:
+
+```tsx
+<AppShell
+  navigation={navigation}
+  breadcrumbs={[{ text: 'Home', href: '/' }, { text: 'Projects', href: '/projects' }]}
+  activeHref="/projects"
+>
+  <ListPage config={projectListConfig} items={items} />
+</AppShell>
 ```
 
 ---
@@ -217,17 +263,24 @@ type Translations = Record<string, string>;
 
 ### Usage
 
+From `src/main.tsx`:
+
 ```tsx
 import { I18nProvider } from 'pageforge';
 
-const TRANSLATIONS = {
-  en: { 'page.title': 'Networks' },
-  es: { 'page.title': 'Redes' },
+const translations = {
+  en: {
+    'list.loading': 'Loading resources...',
+    'list.emptyTitle': 'No projects',
+    'list.emptyDescription': 'Create a project to get started.',
+  },
 };
 
-<I18nProvider locale="en" translations={TRANSLATIONS}>
-  <App />
-</I18nProvider>
+<BrowserRouter>
+  <I18nProvider locale="en" translations={translations}>
+    <App />
+  </I18nProvider>
+</BrowserRouter>
 ```
 
 All `ListPage`, `FormPage`, and `AppShell` components nested inside will use these translations. See the [i18n guide](i18n.md) for full details.
@@ -248,21 +301,5 @@ const { t, locale } = useI18n();
 |----------|------|-------------|
 | `t` | `(key: string, fallback?: string) => string` | Translate a key |
 | `locale` | `string` | Current locale (e.g. `'en'`) |
-
-### Usage
-
-```tsx
-import { useI18n } from 'pageforge';
-
-function PageHeader() {
-  const { t, locale } = useI18n();
-  return (
-    <header>
-      <h1>{t('page.networks.title', 'Networks')}</h1>
-      <span>Locale: {locale}</span>
-    </header>
-  );
-}
-```
 
 If no `I18nProvider` is present, `t` returns the fallback (or the key itself) and `locale` defaults to `'en'`.
