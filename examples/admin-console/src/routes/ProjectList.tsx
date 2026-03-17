@@ -3,7 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { AppShell, ListPage } from 'pageforge';
 import { projectListConfig } from '../configs/projects';
 import { navigation } from '../navigation';
-import { api } from '../api';
+import { ProjectController } from '../controllers/projects';
+import { apiClient } from '../api';
+
+const controller = new ProjectController(apiClient);
 
 export function ProjectList() {
   const [items, setItems] = useState<any[]>([]);
@@ -12,7 +15,7 @@ export function ProjectList() {
 
   const load = () => {
     setLoading(true);
-    api('projects/list').then(data => { setItems(data.items); setLoading(false); });
+    controller.list().then(data => { setItems(data.items); setLoading(false); });
   };
 
   useEffect(() => { load(); }, []);
@@ -20,7 +23,7 @@ export function ProjectList() {
   const handleAction = (action: string, selected?: any[]) => {
     if (action === 'create') navigate('/projects/create');
     if (action === 'delete' && selected?.length) {
-      Promise.all(selected.map(item => api('projects/delete', { id: item.id })))
+      Promise.all(selected.map(item => controller.delete(item.id)))
         .then(() => load());
     }
   };

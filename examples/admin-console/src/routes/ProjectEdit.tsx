@@ -3,19 +3,22 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { AppShell, FormPage } from 'pageforge';
 import { projectEditConfig } from '../configs/projects';
 import { navigation } from '../navigation';
-import { api } from '../api';
+import { ProjectController } from '../controllers/projects';
+import { apiClient } from '../api';
+
+const controller = new ProjectController(apiClient);
 
 export function ProjectEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [project, setProject] = useState<any>(null);
 
-  useEffect(() => { api('projects/get', { id }).then(setProject); }, [id]);
+  useEffect(() => { controller.get(id!).then(setProject); }, [id]);
 
   if (!project) return null;
 
   const handleSubmit = async (data: any) => {
-    await api('projects/update', { id, ...data });
+    await controller.update(id!, data);
     navigate(`/projects/${id}`);
   };
 

@@ -2,13 +2,16 @@ import { useNavigate } from 'react-router-dom';
 import { AppShell, FormPage } from 'pageforge';
 import { projectFormConfig } from '../configs/projects';
 import { navigation } from '../navigation';
-import { api } from '../api';
+import { ProjectController } from '../controllers/projects';
+import { apiClient } from '../api';
+
+const controller = new ProjectController(apiClient);
 
 export function ProjectCreate() {
   const navigate = useNavigate();
 
   const handleSubmit = async (data: any) => {
-    await api('projects/create', data);
+    await controller.create(data);
     navigate('/projects');
   };
 

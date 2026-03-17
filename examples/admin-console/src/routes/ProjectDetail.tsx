@@ -9,7 +9,10 @@ import ColumnLayout from '@cloudscape-design/components/column-layout';
 import Box from '@cloudscape-design/components/box';
 import StatusIndicator from '@cloudscape-design/components/status-indicator';
 import { navigation } from '../navigation';
-import { api } from '../api';
+import { ProjectController } from '../controllers/projects';
+import { apiClient } from '../api';
+
+const controller = new ProjectController(apiClient);
 
 const statusMap: Record<string, { type: string; label: string }> = {
   active: { type: 'success', label: 'Active' },
@@ -22,14 +25,14 @@ export function ProjectDetail() {
   const navigate = useNavigate();
   const [project, setProject] = useState<any>(null);
 
-  useEffect(() => { api('projects/get', { id }).then(setProject); }, [id]);
+  useEffect(() => { controller.get(id!).then(setProject); }, [id]);
 
   if (!project) return null;
 
   const status = statusMap[project.status] ?? { type: 'info', label: project.status };
 
   const handleDelete = async () => {
-    await api('projects/delete', { id });
+    await controller.delete(id!);
     navigate('/projects');
   };
 
