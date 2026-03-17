@@ -1,6 +1,6 @@
 # pageforge
 
-A JSON-driven page framework for building admin consoles with React, Cloudscape Design System, and AWS API Gateway.
+A JSON-driven page framework for building admin consoles with React, Cloudscape Design System, and APIs.
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18+-61dafb.svg)](https://react.dev/)
