@@ -16,12 +16,13 @@ interface FormPageProps {
   onSubmit: (data: any) => void;
   onCancel?: () => void;
   loading?: boolean;
+  initialData?: Record<string, any>;
 }
 
-export function FormPage({ config, onSubmit, onCancel, loading }: FormPageProps) {
+export function FormPage({ config, onSubmit, onCancel, loading, initialData }: FormPageProps) {
   const { t } = useI18n();
   const layout = config.layout as FormLayout;
-  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [formData, setFormData] = useState<Record<string, any>>(initialData ?? {});
 
   const setValue = (key: string, value: any) =>
     setFormData(prev => ({ ...prev, [key]: value }));

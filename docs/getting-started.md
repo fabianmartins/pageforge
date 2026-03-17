@@ -282,6 +282,63 @@ Open [http://localhost:5173/networks](http://localhost:5173/networks). You shoul
 
 ---
 
+## Important: Remix + Cloudscape Patterns
+
+### Client-Only Rendering
+
+Cloudscape components use browser-only APIs (`useLayoutEffect`, DOM measurements) that produce different output on the server vs the client. This causes React hydration errors with Remix's SSR.
+
+The fix is to wrap pages that use Cloudscape components in a `ClientOnly` wrapper:
+
+```tsx
+// app/components/client-only.tsx
+import { useState, useEffect } from 'react';
+
+export function ClientOnly({ children }: { children: () => React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  return mounted ? <>{children()}</> : null;
+}
+```
+
+Then use it in your routes:
+
+```tsx
+import { ClientOnly } from '~/components/client-only';
+
+export default function MyRoute() {
+  return (
+    <ClientOnly>{() =>
+      <AppShell navigation={navigation} breadcrumbs={breadcrumbs}>
+        <ListPage config={config} items={items} />
+      </AppShell>
+    }</ClientOnly>
+  );
+}
+```
+
+### Route Naming for Independent Pages
+
+Remix nests routes by default. A file named `projects.create.tsx` renders inside `projects.tsx`'s `<Outlet />`. For pageforge, each page (list, create, detail, edit) is a standalone page with its own `AppShell`.
+
+Use the `_` escape to make routes independent:
+
+```
+app/routes/
+├── projects.tsx              # /projects (list)
+├── projects_.create.tsx      # /projects/create (standalone)
+├── projects_.$id.tsx         # /projects/:id (standalone detail)
+└── projects_.$id_.edit.tsx   # /projects/:id/edit (standalone edit)
+```
+
+The `_` after a segment name tells Remix "don't nest inside the parent layout":
+- `projects_.create` → independent of `projects.tsx`
+- `$id_.edit` → independent of `$id.tsx`
+
+Without the `_`, the create/detail/edit pages would try to render inside the list page's layout, and you'd see a blank area where the `<Outlet />` should be.
+
+---
+
 ## Next Steps
 
 - [Page Configs](page-configs.md) — Full JSON schema reference

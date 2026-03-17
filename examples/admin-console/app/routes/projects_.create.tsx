@@ -2,6 +2,7 @@ import { useNavigate } from '@remix-run/react';
 import { AppShell, FormPage } from 'pageforge';
 import { projectFormConfig } from '../configs/projects';
 import { navigation } from '../navigation';
+import { ClientOnly } from '../components/client-only';
 
 export default function CreateProjectRoute() {
   const navigate = useNavigate();
@@ -16,16 +17,18 @@ export default function CreateProjectRoute() {
   };
 
   return (
-    <AppShell
-      navigation={navigation}
-      breadcrumbs={[
-        { text: 'Home', href: '/' },
-        { text: 'Projects', href: '/projects' },
-        { text: 'Create', href: '/projects/create' },
-      ]}
-      activeHref="/projects"
-    >
-      <FormPage config={projectFormConfig} onSubmit={handleSubmit} onCancel={() => navigate('/projects')} />
-    </AppShell>
+    <ClientOnly>{() =>
+      <AppShell
+        navigation={navigation}
+        breadcrumbs={[
+          { text: 'Home', href: '/' },
+          { text: 'Projects', href: '/projects' },
+          { text: 'Create', href: '/projects/create' },
+        ]}
+        activeHref="/projects"
+      >
+        <FormPage config={projectFormConfig} onSubmit={handleSubmit} onCancel={() => navigate('/projects')} />
+      </AppShell>
+    }</ClientOnly>
   );
 }

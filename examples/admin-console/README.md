@@ -57,8 +57,37 @@ Open http://localhost:3000/projects to see the admin console.
 | PageForge Feature | Where |
 |---|---|
 | `ListPage` with search, badges, links | `app/routes/projects.tsx` |
-| `FormPage` with text, select, textarea | `app/routes/projects.create.tsx` |
-| `AppShell` with navigation + breadcrumbs | Both routes |
+| `FormPage` with create and edit forms | `app/routes/projects_.create.tsx`, `projects_.$id_.edit.tsx` |
+| `FormPage` with `initialData` for editing | `app/routes/projects_.$id_.edit.tsx` |
+| `AppShell` with navigation + breadcrumbs | All routes |
 | `I18nProvider` | `app/root.tsx` |
 | `BaseController` subclass | `app/controllers/projects.ts` |
+| `ClientOnly` wrapper for SSR compatibility | All routes |
 | JSON page configs | `app/configs/projects.ts` |
+| Remix route naming (`_` escape) | `app/routes/` |
+
+## Ideas to Extend This Example
+
+### Grouped Actions with ButtonDropdown
+
+As the number of actions grows, individual buttons become cluttered. Cloudscape's `ButtonDropdown` component lets you group related actions into a single dropdown. You could extend `ActionConfig` to support this:
+
+```typescript
+// In your page config:
+actions: [
+  { label: 'Create project', variant: 'primary', action: 'create' },
+  {
+    label: 'Actions',
+    type: 'dropdown',
+    items: [
+      { label: 'Edit', action: 'edit', requiresSelection: true },
+      { label: 'Clone', action: 'clone', requiresSelection: true },
+      { label: 'Archive', action: 'archive', requiresSelection: true },
+      { label: 'Export', action: 'export' },
+      { label: 'Delete', action: 'delete', requiresSelection: true },
+    ],
+  },
+]
+```
+
+This would require adding `type?: 'dropdown'` and `items?: ActionConfig[]` to the `ActionConfig` type, and rendering a `ButtonDropdown` in `ListPage` when `type === 'dropdown'`.

@@ -12,3 +12,6 @@ package-lock.json
 .oh-my-zsh
 .z*
 .gitconfig
+.npm
+dynamodb*
+shared-local-instance.db

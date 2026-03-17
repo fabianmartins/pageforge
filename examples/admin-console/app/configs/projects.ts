@@ -51,3 +51,27 @@ export const projectFormConfig: PageConfig = {
     ],
   },
 };
+
+export const projectEditConfig: PageConfig = {
+  page: 'projects/edit',
+  model: 'project',
+  type: 'form',
+  layout: {
+    title: 'Edit project',
+    submitLabel: 'Save',
+    cancelPath: '/projects',
+    fields: [
+      { key: 'name', label: 'Project name', type: 'text', required: true },
+      { key: 'owner', label: 'Owner', type: 'text', required: true },
+      {
+        key: 'status', label: 'Status', type: 'select',
+        options: [
+          { label: 'Planning', value: 'planning' },
+          { label: 'Active', value: 'active' },
+          { label: 'Completed', value: 'completed' },
+        ],
+      },
+      { key: 'description', label: 'Description', type: 'textarea' },
+    ],
+  },
+};

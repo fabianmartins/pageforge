@@ -11,6 +11,11 @@ const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({
 
 const app = express();
 app.use(express.json());
+app.use((_req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  next();
+});
 
 // List projects
 app.post('/projects/list', async (_req, res) => {
@@ -36,6 +41,16 @@ app.post('/projects/create', async (req, res) => {
 app.post('/projects/delete', async (req, res) => {
   await ddb.send(new DeleteCommand({ TableName: 'Projects', Key: { id: req.body.id } }));
   res.json({ success: true });
+});
+
+// Update project
+app.post('/projects/update', async (req, res) => {
+  const { id, ...fields } = req.body;
+  const { Item } = await ddb.send(new GetCommand({ TableName: 'Projects', Key: { id } }));
+  if (!Item) return res.status(404).json({ error: 'Not found' });
+  const updated = { ...Item, ...fields };
+  await ddb.send(new PutCommand({ TableName: 'Projects', Item: updated }));
+  res.json(updated);
 });
 
 app.listen(3001, () => console.log('API server running on http://localhost:3001'));
