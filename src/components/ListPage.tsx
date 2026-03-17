@@ -8,11 +8,11 @@ import Pagination from '@cloudscape-design/components/pagination';
 import StatusIndicator from '@cloudscape-design/components/status-indicator';
 import Box from '@cloudscape-design/components/box';
 import { Link } from '@remix-run/react';
-import type { PageConfig, ListLayout, ColumnConfig } from '../types.js';
+import type { ListPageConfig, ColumnConfig } from '../types.js';
 import { useI18n } from '../i18n.js';
 
 interface ListPageProps {
-  config: PageConfig;
+  config: ListPageConfig;
   items: any[];
   loading?: boolean;
   onAction?: (action: string, selectedItems?: any[]) => void;
@@ -41,7 +41,7 @@ function renderCell(item: any, col: ColumnConfig) {
 
 export function ListPage({ config, items, loading, onAction, nextToken, onNextPage }: ListPageProps) {
   const { t } = useI18n();
-  const layout = config.layout as ListLayout;
+  const layout = config.layout;
   const [filterText, setFilterText] = useState('');
   const [selectedItems, setSelectedItems] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);

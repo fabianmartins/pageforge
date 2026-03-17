@@ -1,5 +1,8 @@
 export type {
   PageConfig,
+  ListPageConfig,
+  DetailPageConfig,
+  FormPageConfig,
   ListLayout,
   DetailLayout,
   FormLayout,
