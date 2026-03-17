@@ -20,7 +20,7 @@ Renders a Cloudscape `Table` from a list-type `PageConfig`. Handles column rende
 
 ```typescript
 interface ListPageProps {
-  config: PageConfig;                                        // Page config with type: 'list'
+  config: ListPageConfig;                                    // Page config with type: 'list'
   items: any[];                                              // Data items to display
   loading?: boolean;                                         // Show loading indicator
   onAction?: (action: string, selectedItems?: any[]) => void; // Called when an action button is clicked
@@ -43,6 +43,7 @@ Columns render based on their `type`:
 
 ```tsx
 import { ListPage } from 'pageforge';
+import type { ListPageConfig } from 'pageforge';
 import config from '~/pages/networks.json';
 
 export default function NetworksRoute() {
@@ -83,10 +84,11 @@ Renders a Cloudscape `Form` with fields from a form-type `PageConfig`. Manages f
 
 ```typescript
 interface FormPageProps {
-  config: PageConfig;                  // Page config with type: 'form'
+  config: FormPageConfig;              // Page config with type: 'form'
   onSubmit: (data: any) => void;       // Called with form data on submit
   onCancel?: () => void;               // Called when cancel is clicked
   loading?: boolean;                   // Show loading state on submit button
+  initialData?: Record<string, any>;   // Pre-populates form fields for edit forms
 }
 ```
 
@@ -103,6 +105,7 @@ interface FormPageProps {
 
 ```tsx
 import { FormPage } from 'pageforge';
+import type { FormPageConfig } from 'pageforge';
 import config from '~/pages/create-profile.json';
 
 export default function CreateProfileRoute() {
